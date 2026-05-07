@@ -16,6 +16,10 @@ cleaned = ' '.join([w for w in sentence.split() if w.lower() not in stopwords])
 print(cleaned)
 
 # Q3
+import emoji
+text_with_emoji = "I love Python 🐍 programming 😊"
+emojis = emoji.emoji_list(text_with_emoji)
+print(f"Emojis: {[e['emoji'] for e in emojis]}")
 def stem(word):
     for suffix in ['ing', 'ed', 'ly', 'es', 's']:
         if word.endswith(suffix):
@@ -57,49 +61,53 @@ sentence = "The cat quickly jumped"
 print([(w, pos_tag(w)) for w in sentence.split()])
 
 # Q6
+import nltk
+from nltk import CFG
+from nltk.parse.chart import ChartParser
+grammar_str = """
+S -> NP VP
+NP -> PRP | Det N | Det N PP
+VP -> V NP | V NP PP
+PP -> P NP
+PRP -> 'I'
+V -> 'saw'
+Det -> 'the' | 'a'
+N -> 'man' | 'telescope'
+P -> 'with'
+"""
+cfg = CFG.fromstring(grammar_str)
+parser = ChartParser(cfg)
 sentence = "I saw the man with a telescope"
-grammar = {
-    'S': [['NP', 'VP']],
-    'NP': [['PRP'], ['Det', 'N'], ['Det', 'N', 'PP']],
-    'VP': [['V', 'NP'], ['V', 'NP', 'PP']],
-    'PP': [['P', 'NP']],
-    'PRP': ['I'],
-    'V': ['saw'],
-    'Det': ['the', 'a'],
-    'N': ['man', 'telescope'],
-    'P': ['with']
-}
-def count_parses(tokens, symbol, idx=0):
-    if symbol in ['PRP', 'V', 'Det', 'N', 'P']:
-        return [(1, idx + 1)] if idx < len(tokens) and tokens[idx] in grammar[symbol] else []
-    results = []
-    for rule in grammar.get(symbol, []):
-        results.extend(parse_rule(tokens, rule, idx))
-    return results
-
-def parse_rule(tokens, rule, idx):
-    if not rule:
-        return [(1, idx)]
-    first, rest = rule[0], rule[1:]
-    results = []
-    for left_count, next_idx in count_parses(tokens, first, idx):
-        for right_count, final_idx in parse_rule(tokens, rest, next_idx):
-            results.append((left_count * right_count, final_idx))
-    return results
-
 tokens = sentence.split()
-num_parses = sum(
-    count for count, idx in count_parses(tokens, 'S', 0)
-    if idx == len(tokens)
-)
+trees = list(parser.parse(tokens))
+num_parses = len(trees)
 print(f"{sentence} - {'Syntactic' if num_parses > 1 else 'Semantic'} ambiguity ({num_parses} parse trees)")
+for tree in trees:
+    tree.pretty_print()
 
 # Q7
+from nltk import ngrams
+text = "I love NLP and NLP is great"
+tokens = text.split()
+bigrams = list(ngrams(tokens, 2))
+trigrams = list(ngrams(tokens, 3))
+print(f"Bigrams: {bigrams}")
+print(f"Trigrams: {trigrams}")
+bigram_freq = Counter(bigrams)
+total_bigrams = len(bigrams)
+for bg, count in bigram_freq.items():
+    prob = count / total_bigrams
+    print(f"P{bg} = {count}/{total_bigrams} = {prob:.3f}")
 sentences = ["I love NLP", "NLP is great", "I love programming"]
 vocab = sorted(set(' '.join(sentences).split()))
 bow = [[s.split().count(w) for w in vocab] for s in sentences]
 print(vocab)
 print(bow)
+text = "I love NLP"
+words = text.split()
+n = 2
+ngrams = [tuple(words[i:i+n]) for i in range(len(words)-n+1)]
+print(f"Bigrams: {ngrams}")
 
 # Q8
 doc = "cat cat dog bird cat"
@@ -130,12 +138,23 @@ for c in classes:
 states = ['S', 'M']
 trans = {'S': {'S': 0.7, 'M': 0.3}, 'M': {'S': 0.4, 'M': 0.6}}
 emit = {'S': {'walk': 0.6, 'shop': 0.4}, 'M': {'walk': 0.3, 'shop': 0.7}}
-print(trans, emit)
-print("\nFinal Probability Table:")
-for s1 in states:
-    for s2 in states:
-        prob = trans[s1][s2] * emit[s2]['walk']
-        print(f"{s1} -> {s2} : {trans[s1][s2]} * {emit[s2]['walk']} = {prob}")
+obs = ['walk', 'shop']
+start_prob = {'S': 0.6, 'M': 0.4}
+V = [{}]
+path = {}
+for s in states:
+    V[0][s] = start_prob[s] * emit[s][obs[0]]
+    path[s] = [s]
+for t in range(1, len(obs)):
+    V.append({})
+    new_path = {}
+    for curr_s in states:
+        max_prob, best_prev = max((V[t-1][prev_s] * trans[prev_s][curr_s] * emit[curr_s][obs[t]], prev_s) for prev_s in states)
+        V[t][curr_s] = max_prob
+        new_path[curr_s] = path[best_prev] + [curr_s]
+    path = new_path
+final_prob, best_state = max((V[-1][s], s) for s in states)
+print(f"Best path: {path[best_state]}, Prob: {final_prob}")
 
 # Q13
 bigrams = {('I', 'love'): 0.5, ('love', 'NLP'): 0.8, ('NLP', 'programming'): 0.3}
@@ -157,9 +176,11 @@ precision = matches / len(cand) if cand else 0
 print(f"BLEU-1: {precision}")
 
 # Q15
-text = "Hello123! This is text@#."
+import emoji
+text = "Hello123! This is text@#. 😊🎉"
+emojis = [c for c in text if c in emoji.EMOJI_DATA]
 cleaned = re.sub(r'[^a-zA-Z\s]', '', text).lower()
-print(cleaned)
+print(f"Emojis: {emojis}, Cleaned: {cleaned}")
 
 # Q16
 grammar = {'S': [['NP', 'VP']], 'NP': [['Det', 'N']], 'VP': [['V', 'NP']], 'Det': ['the'], 'N': ['cat'], 'V': ['saw']}
